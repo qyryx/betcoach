@@ -15,4 +15,5 @@ export const MatchModel = mongoose.model('Match', MatchSchema);
 
 export const createMatch = (values) => new MatchModel(values).save().then((match) => match.toObject());
 export const getMatches = () => MatchModel.find({}, { _id: 0, __v: 0 });
+export const getMatch = (id) => MatchModel.findOne({id}, { _id: 0, __v: 0 });
 export const deleteMatches = () => MatchModel.deleteMany({});

@@ -1,5 +1,6 @@
 import { createTicket, getTicketsById, ticketFeed } from '../db/ticket';
 import { getUsernameById, getMoneyById, setMoneyById } from '../db/user.js';
+import { getMatch } from '../db/match.js';
 
 const checkIfMatchesHaveNotStarted = (matches) => {
     const date = new Date(Date.now());
@@ -15,16 +16,36 @@ const checkIfMatchesHaveNotStarted = (matches) => {
 
 export const submitTicket = async (req, res) => {
     try {
-        const { matches, input, ticketRate } = req.body;
+        const { matches, input } = req.body;
+        console.log(matches);
         if (!input) {
             return res.status(400).json({ message: 'Missing money amount' });
+        }
+        if (input < 0.5 || input > 1000) {
+            return res.status(400).json({ message: 'Amount must be in range 0.5 < EUR < 1000' });
         }
         if (matches.length === 0) {
             return res.status(400).json({ message: 'Ticket is empty' });
         }
+        if (matches.length > 30) {
+            return res.status(400).json({ message: 'Maximum matches on the ticket is 30' });
+        }
         if (!checkIfMatchesHaveNotStarted(matches)) {
             return res.status(400).json({ message: 'Some matches have already started' });
         }
+
+        await Promise.all(matches.map(async match => {
+            const matchFromDb = await getMatch(match.id);
+            const targetObj = matchFromDb.rates.find(obj => match.bet in obj);
+            const rate = targetObj[match.bet];
+            match.rate = rate;
+        }));
+
+        console.log(matches);
+
+        let ticketRate = matches.reduce((acc, match) => acc * match.rate, 1);
+        ticketRate = Math.round((ticketRate + Number.EPSILON) * 100) / 100
+        console.log(ticketRate);
         const user_id = req.user.user_id;
         const money = await getMoneyById(user_id);
         if (money.money < input) {
